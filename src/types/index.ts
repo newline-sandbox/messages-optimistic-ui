@@ -20,3 +20,12 @@ export interface Message {
 export interface MessagesQueryData {
   messages: Message[];
 }
+
+export interface AddMessageMutationData {
+  addMessage: Message;
+}
+
+export interface AddMessageMutationVariables {
+  text: string;
+  userId: string;
+}

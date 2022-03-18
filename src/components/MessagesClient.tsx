@@ -1,13 +1,21 @@
-import { FC, useContext } from "react";
-import { gql, useQuery } from "@apollo/client";
+import { FC, SyntheticEvent, useContext, useRef } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { gql, useMutation, useQuery } from "@apollo/client";
 import { AppContext } from "../contexts";
-import { Message, MessagesQueryData } from "../types";
+import {
+  Message,
+  MessagesQueryData,
+  AddMessageMutationData,
+  AddMessageMutationVariables,
+} from "../types";
 
 export interface MessagesListProps {
   className?: string;
 }
 
 const MessagesClient: FC<MessagesListProps> = ({ className }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const { currentUser } = useContext(AppContext);
   const { loading, error, data } = useQuery<MessagesQueryData>(gql`
     query {
@@ -24,8 +32,83 @@ const MessagesClient: FC<MessagesListProps> = ({ className }) => {
     }
   `);
 
+  const [addMessage] = useMutation<
+    AddMessageMutationData,
+    AddMessageMutationVariables
+  >(gql`
+    mutation AddMessage($text: String!, $userId: ID!) {
+      addMessage(text: $text, userId: $userId) {
+        id
+        text
+        createdBy {
+          id
+          firstName
+          lastName
+        }
+        createdAt
+      }
+    }
+  `);
+
   if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
+
+  const handleOnSubmit = (evt: SyntheticEvent) => {
+    evt.preventDefault();
+
+    if (inputRef?.current?.value && currentUser) {
+      const messageText = inputRef.current.value;
+
+      addMessage({
+        variables: { text: messageText, userId: currentUser.id },
+        update(cache, mutationResult) {
+          const resultMessage = mutationResult?.data?.addMessage;
+
+          if (resultMessage) {
+            cache.modify({
+              fields: {
+                messages(existingMessagesRefs = []) {
+                  const newMessageRef = cache.writeFragment({
+                    data: resultMessage,
+                    fragment: gql`
+                      fragment NewMessage on Message {
+                        id
+                        text
+                        createdBy {
+                          id
+                          firstName
+                          lastName
+                        }
+                        createdAt
+                      }
+                    `,
+                  });
+
+                  return existingMessagesRefs.concat(newMessageRef);
+                },
+              },
+            });
+          }
+        },
+        optimisticResponse: {
+          addMessage: {
+            __typename: "Message",
+            id: uuidv4(),
+            text: messageText,
+            createdBy: {
+              __typename: "User",
+              ...currentUser,
+            },
+            createdAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      inputRef.current.value = "";
+
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+  };
 
   return (
     <div className={className}>
@@ -74,10 +157,13 @@ const MessagesClient: FC<MessagesListProps> = ({ className }) => {
           </li>
         ))}
       </ul>
-      <form>
+      <form onSubmit={handleOnSubmit}>
         <label className="block relative">
           <span className="sr-only">Type Message</span>
-          <input className="form-input block w-full rounded-full border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 pr-10" />
+          <input
+            className="form-input block w-full rounded-full border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 pr-10"
+            ref={inputRef}
+          />
           <button
             type="submit"
             className="absolute top-2 right-2 text-blue-500"
