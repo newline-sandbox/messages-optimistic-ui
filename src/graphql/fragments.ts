@@ -26,8 +26,18 @@ export const GET_MESSAGES = gql`
 `;
 
 export const ADD_MESSAGE = gql`
-  mutation AddMessage($text: String!, $userId: ID!) {
-    addMessage(text: $text, userId: $userId) {
+  mutation AddMessage(
+    $text: String!
+    $userId: ID!
+    $isRetry: Boolean
+    $createdAt: String
+  ) {
+    addMessage(
+      text: $text
+      userId: $userId
+      isRetry: $isRetry
+      createdAt: $createdAt
+    ) {
       id
       text
       createdBy {

@@ -33,7 +33,8 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
 
   if (
     (graphQLErrors || networkError) &&
-    operation.operationName === "AddMessage"
+    operation.operationName === "AddMessage" &&
+    !operation.variables.isRetry
   ) {
     const { users } = cache.readQuery({ query: GET_USERS });
     const { messages } = cache.readQuery({ query: GET_MESSAGES });
@@ -56,7 +57,6 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
               ...createdBy,
             },
             createdAt: new Date().toISOString(),
-            isLocal: true,
           },
         ],
       },

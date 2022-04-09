@@ -50,9 +50,6 @@ const MessagesClient: FC<MessagesListProps> = ({ className }) => {
 
       addMessage({
         variables: { text: messageText, userId: currentUser.id },
-
-        // Optimistically add the Todo to the locally cached
-        // list before the server responds
         optimisticResponse: {
           addMessage: {
             __typename: "Message",
@@ -98,46 +95,20 @@ const MessagesClient: FC<MessagesListProps> = ({ className }) => {
           variables: {
             text: message.text,
             userId: message.createdBy.id,
-            localMessageId: message.id,
-          },
-
-          // Optimistically add the Todo to the locally cached
-          // list before the server responds
-          optimisticResponse: {
-            addMessage: {
-              __typename: "Message",
-              id: message.id,
-              text: message.text,
-              createdBy: {
-                __typename: "User",
-                ...message.createdBy,
-              },
-              createdAt: message.createdAt,
-            },
+            isRetry: true,
+            createdAt: message.createdAt,
           },
           update(cache, mutationResult) {
             const resultMessage = mutationResult?.data?.addMessage;
 
-            if (resultMessage) {
-              if (resultMessage.id.substring(0, 5) === "ERROR") {
-                cache.updateFragment(
-                  {
-                    id: `Message:${resultMessage.id}`,
-                    fragment: CACHE_NEW_MESSAGE_FRAGMENT,
-                  },
-                  (data) => ({ ...data, id: resultMessage.id.substring(6) })
-                );
-              } else {
-                cache.updateFragment(
-                  {
-                    id: `Message:${message.id}`,
-                    fragment: CACHE_NEW_MESSAGE_FRAGMENT,
-                  },
-                  (data) => {
-                    return { ...data, id: resultMessage.id };
-                  }
-                );
-              }
+            if (resultMessage && message.id.substring(0, 5) === "ERROR") {
+              cache.updateFragment(
+                {
+                  id: `Message:${message.id}`,
+                  fragment: CACHE_NEW_MESSAGE_FRAGMENT,
+                },
+                (data) => ({ ...data, id: resultMessage.id })
+              );
             }
           },
         });

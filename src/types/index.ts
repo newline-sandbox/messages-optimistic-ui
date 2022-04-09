@@ -28,5 +28,6 @@ export interface AddMessageMutationData {
 export interface AddMessageMutationVariables {
   text: string;
   userId: string;
-  localMessageId?: string;
+  isRetry?: boolean;
+  createdAt?: string;
 }
